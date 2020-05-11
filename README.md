@@ -12,9 +12,14 @@ $ npm install
 $ node generate-mnemonic
 ```
 
-#### get wallet details for mnemonic
-Put the mnemonic in get-wallet-from-mnemonic.js
-Run this in console
+#### get wallet details from mnemonic
+Put the mnemonic in get-wallet-from-mnemonic.js then run this in console
 ```bash
-$ node generate-mnemonic
+$ node get-wallet-from-mnemonic.js
+```
+
+#### get wallet details from private key
+Put the privateKey in get-wallet-from-privatekey.js then run this in console
+```bash
+$ node get-wallet-from-privatekey.js
 ```
