@@ -8,6 +8,8 @@ const ecc = require('tiny-secp256k1');
 const { Secp256k1Keypair } = require('@mysten/sui/keypairs/secp256k1');
 const { decodeSuiPrivateKey } = require('@mysten/sui/cryptography');
 const { toBase64 } = require('@mysten/bcs');
+const { Keypair } = require('@solana/web3.js');
+const bs58 = require('bs58').default || require('bs58');
 
 const bip32 = BIP32Factory(ecc);
 
@@ -16,7 +18,8 @@ const DERIVATION_PATHS = {
   evm: "m/44'/60'/0'/0/0",
   stellar: "m/44'/148'/0'",
   bitcoin: "m/84'/0'/0'/0/0", // Native SegWit (bech32)
-  sui: "m/54'/784'/0'/0/0" // Secp256k1
+  sui: "m/54'/784'/0'/0/0", // Secp256k1
+  solana: "m/44'/501'/0'/0'" // Solana
 };
 
 function deriveEVM(mnemonic) {
@@ -91,6 +94,21 @@ function deriveSui(mnemonic) {
   };
 }
 
+function deriveSolana(mnemonic) {
+  const seedHex = ethers.Mnemonic.fromPhrase(mnemonic).computeSeed();
+  const seed = Buffer.from(seedHex.slice(2), 'hex');
+  const root = bip32.fromSeed(seed);
+  const child = root.derivePath(DERIVATION_PATHS.solana);
+
+  const keypair = Keypair.fromSeed(child.privateKey.slice(0, 32));
+
+  return {
+    address: keypair.publicKey.toBase58(),
+    publicKey: keypair.publicKey.toBase58(),
+    privateKey: bs58.encode(keypair.secretKey)
+  };
+}
+
 function deriveKeys(mnemonic, chain) {
   try {
     ethers.Mnemonic.fromPhrase(mnemonic);
@@ -115,8 +133,12 @@ function deriveKeys(mnemonic, chain) {
     case 'sui':
       return deriveSui(mnemonic);
 
+    case 'solana':
+    case 'sol':
+      return deriveSolana(mnemonic);
+
     default:
-      throw new Error(`Unsupported chain: ${chain}. Supported chains: evm, stellar, bitcoin, sui`);
+      throw new Error(`Unsupported chain: ${chain}. Supported chains: evm, stellar, bitcoin, sui, solana`);
   }
 }
 
@@ -126,7 +148,7 @@ if (require.main === module) {
 
   if (args.length < 2) {
     console.error('Usage: node derive-keys.js "<mnemonic>" <chain>');
-    console.error('Chains: evm, stellar, bitcoin, sui');
+    console.error('Chains: evm, stellar, bitcoin, sui, solana');
     process.exit(1);
   }
 
