@@ -19,7 +19,8 @@ const DERIVATION_PATHS = {
   stellar: "m/44'/148'/0'",
   bitcoin: "m/84'/0'/0'/0/0", // Native SegWit (bech32)
   sui: "m/54'/784'/0'/0/0", // Secp256k1
-  solana: "m/44'/501'/0'/0'" // Solana
+  solana: "m/44'/501'/0'/0'", // Solana
+  tron: "m/44'/195'/0'/0/0" // TRON
 };
 
 function deriveEVM(mnemonic) {
@@ -109,6 +110,28 @@ function deriveSolana(mnemonic) {
   };
 }
 
+function deriveTron(mnemonic) {
+  const wallet = ethers.HDNodeWallet.fromPhrase(mnemonic, undefined, DERIVATION_PATHS.tron);
+
+  // Take last 20 bytes of keccak256(uncompressed public key without 0x04 prefix)
+  const addressBytes = ethers.getBytes(wallet.address);
+
+  // Tron address = 0x41 prefix + 20-byte address, then Base58Check encode
+  const tronBytes = Buffer.concat([Buffer.from([0x41]), Buffer.from(addressBytes)]);
+
+  // Base58Check: payload + first 4 bytes of double SHA-256
+  const hash1 = ethers.sha256(tronBytes);
+  const hash2 = ethers.sha256(hash1);
+  const checksum = Buffer.from(ethers.getBytes(hash2)).slice(0, 4);
+  const tronAddress = bs58.encode(Buffer.concat([tronBytes, checksum]));
+
+  return {
+    address: tronAddress,
+    publicKey: wallet.publicKey,
+    privateKey: wallet.privateKey
+  };
+}
+
 function deriveKeys(mnemonic, chain) {
   try {
     ethers.Mnemonic.fromPhrase(mnemonic);
@@ -137,8 +160,12 @@ function deriveKeys(mnemonic, chain) {
     case 'sol':
       return deriveSolana(mnemonic);
 
+    case 'tron':
+    case 'trx':
+      return deriveTron(mnemonic);
+
     default:
-      throw new Error(`Unsupported chain: ${chain}. Supported chains: evm, stellar, bitcoin, sui, solana`);
+      throw new Error(`Unsupported chain: ${chain}. Supported chains: evm, stellar, bitcoin, sui, solana, tron`);
   }
 }
 
@@ -148,7 +175,7 @@ if (require.main === module) {
 
   if (args.length < 2) {
     console.error('Usage: node derive-keys.js "<mnemonic>" <chain>');
-    console.error('Chains: evm, stellar, bitcoin, sui, solana');
+    console.error('Chains: evm, stellar, bitcoin, sui, solana, tron');
     process.exit(1);
   }
 
